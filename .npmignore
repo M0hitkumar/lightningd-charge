@@ -1,0 +1,8 @@
+.env
+sqlite.db
+src/
+test/
+www/
+Dockerfile
+.dockerignore
+example.env

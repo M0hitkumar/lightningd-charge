@@ -1,0 +1,62 @@
+doctype html
+
+title Lightning Charge Checkout
+meta(charset='utf-8')
+base(href=settings.url)
+meta(name='viewport', content='width=device-width, initial-scale=1')
+
+meta(name='invoice-id', content=id)
+
+if status == 'unpaid'
+  meta(name='invoice-poll-url', content=settings.url+'checkout/'+id+'/wait')
+  meta(name='invoice-expiry', content=expires_at)
+
+mixin css(path)
+  link(rel='stylesheet', href=settings.static_url+path)
+
++css('bootstrap.min.css')
++css('checkout.css')
+
+- opt = metadata && metadata.checkout || {}
+- unit = opt.display_unit in fmtbtc.units ? opt.display_unit : 'sat'
+- unit_label = ({ msat: 'millisatoshis', sat: 'satoshis', bit: 'bits', milli: 'mBTC', btc: 'BTC' })[unit]
+
+body: .checkout.container
+  script window.parent != window && (document.body.className += ' iframed')
+
+  .row
+    .desc.col-sm-6
+      h3= opt.title || 'Lightning Payment'
+      h4= opt.desc || 'Pay with Lightning'
+    if msatoshi
+      .amounts.col-sm-6
+        if quoted_currency && quoted_currency != 'BTC'
+          h3 #{ quoted_amount } #{ quoted_currency }
+          h4 #{ fmtbtc.pfmt(msatoshi, 'msat', unit) } #{ unit_label }
+        else
+          h3 #{ fmtbtc.pfmt(msatoshi, 'msat', unit) } #{ unit_label }
+
+  if status == 'paid'
+    p.thankyou= opt.thank_you || 'Thank you! Your payment has been received.'
+    script window.parent != window && window.parent.postMessage({ type: 'completed', invoice: '#{ id }' }, '*')
+
+  else if status == 'expired'
+    p.expired= opt.expired || 'Your invoice has expired. Please try again.'
+
+  else if status == 'unpaid'
+    .row
+      .qr.col-sm-4: img(src=qr)
+      .pay.col-sm-8
+        pre= payreq
+        a.btn.btn-lg.btn-primary(href=`lightning:${payreq}`)= opt.button || 'Pay with wallet'
+
+        p.expiry.text-muted Invoice expires in #[span]
+
+    script(src=settings.static_url+'checkout.js')
+
+  script.
+    if (window.parent != window) {
+      function updateHeight() { window.parent.postMessage({ type: 'height', value: document.body.scrollHeight, invoice: '#{ id }' }, '*') }
+      updateHeight()
+      window.addEventListener('resize', updateHeight)
+    }

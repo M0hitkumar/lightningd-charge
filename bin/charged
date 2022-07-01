@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+
+const args = require('meow')(`
+    Usage
+      $ charged [options]
+
+    Options
+      -t, --api-token <token>   API access token [required unless cookie-file is specified]
+      -C, --cookie-file <path>  generate random access token and persist to {path} [default: none]
+      -l, --ln-path <path>      path to c-lightning data directory [default: ~/.lightning]
+      -d, --db-path <path>      path to sqlite3 database file [default: ./sqlite.db]
+      -w, --max-wait <sec>      maximum time to wait for invoice long-poll updates, in seconds [default: 120]
+
+      -p, --port <port>         http server port [default: 9112]
+      -i, --host <host>         http server listen address [default: 127.0.0.1]
+      -e, --node-env <env>      nodejs environment mode [default: production]
+      --allow-cors <origin>     allow browser CORS requests from <origin> [default: off]
+
+      --rate-proxy <uri>        proxy to use for fetching exchange rate from bitstamp/coingecko [default: see proxy-from-env]
+      --hook-proxy <uri>        proxy to use for web hook push requests [default: see proxy-from-env]
+      --all-proxy <uri>         proxy to use for all http requests [default: see proxy-from-env]
+
+      -h, --help                output usage information
+      -v, --version             output version number
+
+    Example
+      $ charged -t mySecretToken -l ~/.lightning -d ~/charge.db -p 9112
+
+    All options may also be specified as environment variables:
+      $ LN_PATH=/data/lightning PORT=8070 API_TOKEN=mySecretToken charged
+
+`, { flags: { apiToken: {alias:'t'}, lnPath: {alias:'l'}, dbPath: {alias:'d'}
+            , maxWait: {alias:'w'}, cookieFile: {alias:'C'}, port: {alias:'p'}
+            , host: {alias: 'i'}, nodeEnv: {alias:'e', default:'production'} } }
+).flags
+
+const envify = k => k.replace(/([A-Z])/g, '_$1').toUpperCase()
+
+Object.keys(args).filter(k => k.length > 1)
+  .forEach(k => process.env[envify(k)] = args[k])
+
+require('@babel/polyfill')
+
+require('fs').existsSync(__dirname + '/../src')
+  ? require('@babel/register') && require('../src/app')
+  : require('../dist/app')
